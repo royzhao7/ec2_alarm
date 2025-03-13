@@ -34,15 +34,48 @@ class Ec2AlarmStack(Stack):
         istance_key_pair = ec2.KeyPair(self, "TestAlarmCfnKeyPair",
             key_pair_name="TestAlarmCfnKeyPair"
         )
+                      # 创建 IAM Role 以允许 Session Manager
+        ec2_role = iam.Role(self, "TestAlarmEC2SessionManagerRole",
+                        assumed_by=iam.ServicePrincipal("ec2.amazonaws.com"),
+                        managed_policies=[
+                            iam.ManagedPolicy.from_aws_managed_policy_name("AmazonSSMManagedInstanceCore"),
+                        ])
         # 创建 EC2 实例
         instance = ec2.Instance(self, "TestAlarmInstance",
             instance_type=ec2.InstanceType("t2.micro"),
-            machine_image=ec2.MachineImage.latest_amazon_linux(),
+            machine_image=ec2.MachineImage.latest_amazon_linux2(),
             vpc=vpc,
             key_pair=istance_key_pair,
-            security_group=sg
+            security_group=sg,
+            role=ec2_role
         )
-
+  
+        # instance.role.add_managed_policy(
+        #         policy=iam.ManagedPolicy.from_aws_managed_policy_name(
+        #             "AmazonSSMManagedInstanceCore"
+        #         )
+        #     )
+        # key_pair_arn = f"arn:aws-cn:ssm:{self.region}:{self.account}:parameter/ec2/keypair/{istance_key_pair.key_pair_id}"
+        # instance.role.add_to_principal_policy(
+        #     iam.PolicyStatement(
+        #         actions=[
+        #             "ssm:GetParameter",
+        #         ],
+        #         resources=[key_pair_arn],
+        #         effect=iam.Effect.ALLOW,
+        #     )
+        # )
+        # instance.role.add_to_principal_policy(
+        #     iam.PolicyStatement(
+        #         actions=[
+        #             "ec2:DescribeKeyPairs",
+        #         ],
+        #         resources=[
+        #             "*",
+        #         ],
+        #         effect=iam.Effect.ALLOW,
+        #     )
+        # )
 
 
         # 创建 CloudWatch 警报
