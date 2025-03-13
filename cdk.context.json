@@ -59,5 +59,13 @@
         ]
       }
     ]
+  },
+  "security-group:account=079496119912:region=cn-northwest-1:securityGroupId=sg-0c09becad630621ad": {
+    "securityGroupId": "sg-0c09becad630621ad",
+    "allowAllOutbound": false
+  },
+  "security-group:account=079496119912:region=cn-northwest-1:securityGroupId=sg-0117de0948dad429b": {
+    "securityGroupId": "sg-0117de0948dad429b",
+    "allowAllOutbound": false
   }
 }
