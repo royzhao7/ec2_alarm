@@ -5,10 +5,14 @@ from aws_cdk import (
     aws_cloudwatch_actions as actions,
     aws_iam as iam,
     aws_logs as logs,
-    aws_cloudwatch_actions  as actions
+    aws_cloudwatch_actions  as actions,
+    aws_lambda as _lambda,
+    aws_sns as sns,
+    aws_sns_subscriptions as subscriptions,
     
 )
 import aws_cdk as cdk
+import os
 from constructs import Construct
 
 
@@ -50,34 +54,6 @@ class Ec2AlarmStack(Stack):
             role=ec2_role
         )
   
-        # instance.role.add_managed_policy(
-        #         policy=iam.ManagedPolicy.from_aws_managed_policy_name(
-        #             "AmazonSSMManagedInstanceCore"
-        #         )
-        #     )
-        # key_pair_arn = f"arn:aws-cn:ssm:{self.region}:{self.account}:parameter/ec2/keypair/{istance_key_pair.key_pair_id}"
-        # instance.role.add_to_principal_policy(
-        #     iam.PolicyStatement(
-        #         actions=[
-        #             "ssm:GetParameter",
-        #         ],
-        #         resources=[key_pair_arn],
-        #         effect=iam.Effect.ALLOW,
-        #     )
-        # )
-        # instance.role.add_to_principal_policy(
-        #     iam.PolicyStatement(
-        #         actions=[
-        #             "ec2:DescribeKeyPairs",
-        #         ],
-        #         resources=[
-        #             "*",
-        #         ],
-        #         effect=iam.Effect.ALLOW,
-        #     )
-        # )
-
-
         # 创建 CloudWatch 警报
         #在这个设置中，CloudWatch 将每 5 分钟收集一次 CPU 使用率数据，并在过去 100 分钟（10 个周期）内检查至少 2 个数据点是否低于 20%。确保这些参数符合您的监控需求。
         alarm = cloudwatch.Alarm(self, "NetworkInLessThanThresholdStopInstanceAlarm",
@@ -90,11 +66,28 @@ class Ec2AlarmStack(Stack):
                 statistic="Average",
                 period=cdk.Duration.minutes(5),
             ),
-            threshold=200000,
+            threshold=8000,
             evaluation_periods=3,
             datapoints_to_alarm=3,
             comparison_operator=cloudwatch.ComparisonOperator.LESS_THAN_THRESHOLD,
         )
+              # Create a Lambda function to stop the EC2 instance
+        # reset_state_function = _lambda.Function(self, "ResetStateFunction",
+        #     runtime=_lambda.Runtime.PYTHON_3_8,
+        #     handler="stop_instance.handler",
+        #     code=_lambda.Code.from_asset(os.path.join(os.path.dirname(__file__), "lambda")),
+        #     environment={
+        #         "INSTANCE_ID": instance.instance_id,
+        #         "ALARM_NAME": alarm.alarm_name,
+        #     }
+        # )
+        # alarm.add_alarm_action(actions.LambdaAction(reset_state_function))
+         # Create an SNS topic for alarm notifications
+        sns_topic = sns.Topic(self, "Ec2StateAlarmEmailNotifications")
 
+        # Subscribe your email to the SNS topic
+        sns_topic.add_subscription(subscriptions.EmailSubscription("uif46353@contiwan.com"))
         alarm.add_alarm_action(
             actions.Ec2Action(actions.Ec2InstanceAction.STOP))
+        alarm.add_alarm_action(actions.SnsAction(sns_topic))
+        alarm.add_ok_action(actions.SnsAction(sns_topic))
